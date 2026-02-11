@@ -1,0 +1,7 @@
+{
+  "name": "Fluentify English Academy",
+  "description": "Una plataforma integral para aprender inglés básico cubriendo las cuatro habilidades: lectura, escritura, escucha y habla, potenciada por IA para tutoría en tiempo real.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
