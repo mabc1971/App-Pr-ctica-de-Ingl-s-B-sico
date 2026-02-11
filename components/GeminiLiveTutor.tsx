@@ -13,7 +13,6 @@ const GeminiLiveTutor: React.FC = () => {
   const outputAudioCtxRef = useRef<AudioContext | null>(null);
   const nextStartTimeRef = useRef<number>(0);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
-  const sessionRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const currentInputTranscription = useRef('');
@@ -23,8 +22,8 @@ const GeminiLiveTutor: React.FC = () => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
     }
-    if (inputAudioCtxRef.current) inputAudioCtxRef.current.close();
-    if (outputAudioCtxRef.current) outputAudioCtxRef.current.close();
+    if (inputAudioCtxRef.current && inputAudioCtxRef.current.state !== 'closed') inputAudioCtxRef.current.close();
+    if (outputAudioCtxRef.current && outputAudioCtxRef.current.state !== 'closed') outputAudioCtxRef.current.close();
     
     setIsActive(false);
     setStatus('idle');
@@ -32,11 +31,11 @@ const GeminiLiveTutor: React.FC = () => {
 
   const startSession = async () => {
     setError(null);
+    setStatus('connecting');
     try {
-      setStatus('connecting');
       const apiKey = process.env.API_KEY;
       if (!apiKey) {
-        throw new Error("API Key no configurada en el entorno.");
+        throw new Error("API Key no configurada. Por favor, asegúrate de que esté en el entorno.");
       }
 
       const ai = new GoogleGenAI({ apiKey });
@@ -44,7 +43,6 @@ const GeminiLiveTutor: React.FC = () => {
       inputAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       outputAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       
-      // Asegurar que el contexto de audio esté activo
       if (inputAudioCtxRef.current.state === 'suspended') await inputAudioCtxRef.current.resume();
       if (outputAudioCtxRef.current.state === 'suspended') await outputAudioCtxRef.current.resume();
 
@@ -55,7 +53,7 @@ const GeminiLiveTutor: React.FC = () => {
         model: 'gemini-2.5-flash-native-audio-preview-12-2025',
         callbacks: {
           onopen: () => {
-            console.log('Gemini Live Connection Opened');
+            console.log('Live Connection Opened');
             setIsActive(true);
             setStatus('listening');
             
@@ -63,7 +61,7 @@ const GeminiLiveTutor: React.FC = () => {
             const scriptProcessor = inputAudioCtxRef.current!.createScriptProcessor(4096, 1, 1);
             
             scriptProcessor.onaudioprocess = (e) => {
-              if (status === 'speaking') return; // No enviar audio si la IA está hablando
+              if (status === 'speaking') return;
               const inputData = e.inputBuffer.getChannelData(0);
               const pcmBlob = createPcmBlob(inputData);
               sessionPromise.then((session) => {
@@ -82,11 +80,13 @@ const GeminiLiveTutor: React.FC = () => {
             }
 
             if (message.serverContent?.turnComplete) {
-              setTranscripts(prev => [
-                ...prev, 
-                { role: 'user', text: currentInputTranscription.current || '...' },
-                { role: 'model', text: currentOutputTranscription.current || '...' }
-              ]);
+              if (currentInputTranscription.current || currentOutputTranscription.current) {
+                setTranscripts(prev => [
+                  ...prev, 
+                  { role: 'user', text: currentInputTranscription.current || '...' },
+                  { role: 'model', text: currentOutputTranscription.current || '...' }
+                ]);
+              }
               currentInputTranscription.current = '';
               currentOutputTranscription.current = '';
             }
@@ -121,17 +121,18 @@ const GeminiLiveTutor: React.FC = () => {
             }
           },
           onerror: (e) => {
-            console.error('Gemini Live Error:', e);
-            setError("Error de conexión con el tutor.");
+            console.error('Live Error:', e);
+            setError("La conexión se cerró inesperadamente.");
             stopSession();
           },
           onclose: () => {
+            console.log("Connection closed");
             stopSession();
           }
         },
         config: {
           responseModalities: [Modality.AUDIO],
-          systemInstruction: 'You are James, a patient English teacher. Help the user practice basic English. Keep sentences simple and encourage them.',
+          systemInstruction: 'You are James, a patient and friendly English teacher. Help the user practice basic conversation. Use simple words and keep answers short.',
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } }
           },
@@ -140,11 +141,11 @@ const GeminiLiveTutor: React.FC = () => {
         }
       });
 
-      sessionRef.current = await sessionPromise;
     } catch (err: any) {
-      console.error('Failed to start session', err);
-      setError(err.message || "No se pudo acceder al micrófono.");
+      console.error('Mic/Session Error:', err);
+      setError(err.message || "Error al iniciar el micrófono o la sesión.");
       setStatus('idle');
+      setIsActive(false);
     }
   };
 
@@ -153,22 +154,22 @@ const GeminiLiveTutor: React.FC = () => {
       <div className="bg-indigo-600 p-6 text-white flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <i className="fas fa-robot"></i> Tutor de Voz IA
+            <i className="fas fa-robot"></i> Tutor James (Voz)
           </h2>
-          <p className="text-indigo-100 text-sm font-medium">Habla en inglés con James</p>
+          <p className="text-indigo-100 text-sm font-medium">Práctica interactiva en tiempo real</p>
         </div>
         <div>
           {isActive ? (
-            <button onClick={stopSession} className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-full text-sm font-bold transition-all">
-              Detener
+            <button onClick={stopSession} className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-full text-sm font-bold shadow-lg transition-all">
+              Terminar
             </button>
           ) : (
             <button 
               onClick={startSession}
               disabled={status === 'connecting'}
-              className="bg-white text-indigo-600 hover:bg-indigo-50 px-6 py-2 rounded-full text-sm font-bold shadow-lg disabled:opacity-50"
+              className="bg-white text-indigo-600 hover:bg-indigo-50 px-6 py-2 rounded-full text-sm font-bold shadow-lg disabled:opacity-50 transition-all"
             >
-              {status === 'connecting' ? 'Conectando...' : 'Comenzar Práctica'}
+              {status === 'connecting' ? 'Conectando...' : 'Comenzar'}
             </button>
           )}
         </div>
@@ -176,33 +177,36 @@ const GeminiLiveTutor: React.FC = () => {
 
       <div className="h-80 overflow-y-auto p-6 bg-slate-50 flex flex-col gap-4">
         {error && (
-          <div className="bg-red-100 text-red-700 p-3 rounded-lg text-xs font-medium border border-red-200">
+          <div className="bg-red-100 text-red-700 p-4 rounded-xl text-xs font-bold border border-red-200">
             <i className="fas fa-exclamation-circle mr-2"></i> {error}
           </div>
         )}
         
         {transcripts.length === 0 && !isActive && !error && (
-          <div className="flex flex-col items-center justify-center h-full text-slate-400">
-            <i className="fas fa-microphone-lines text-4xl mb-3"></i>
-            <p className="text-sm italic">Haz clic en comenzar y James te saludará.</p>
+          <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4">
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100">
+               <i className="fas fa-microphone-alt text-2xl text-indigo-300"></i>
+            </div>
+            <p className="text-sm italic text-center max-w-[200px]">Haz clic en 'Comenzar' para hablar con James. Necesita permiso de micrófono.</p>
           </div>
         )}
         
         {transcripts.map((t, i) => (
-          <div key={i} className={`flex ${t.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div key={i} className={`flex ${t.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2`}>
             <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${
-              t.role === 'user' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none shadow-sm'
+              t.role === 'user' ? 'bg-indigo-600 text-white rounded-tr-none shadow-md shadow-indigo-200' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none shadow-sm'
             }`}>
+              <p className="font-bold text-[10px] mb-1 uppercase opacity-70">{t.role === 'user' ? 'Tú' : 'James'}</p>
               {t.text}
             </div>
           </div>
         ))}
         
         {isActive && (
-          <div className="mt-auto flex justify-center">
-            <div className="flex items-center gap-2 px-4 py-1.5 bg-indigo-100 text-indigo-700 rounded-full animate-pulse text-xs font-bold uppercase">
-              <i className={`fas ${status === 'speaking' ? 'fa-volume-up' : 'fa-microphone'}`}></i>
-              {status === 'speaking' ? 'James hablando' : 'James escuchando'}
+          <div className="mt-auto flex justify-center py-4">
+            <div className="flex items-center gap-3 px-5 py-2 bg-indigo-100 text-indigo-700 rounded-full animate-pulse text-xs font-bold uppercase tracking-widest shadow-sm">
+              <i className={`fas ${status === 'speaking' ? 'fa-volume-up' : 'fa-microphone'} text-indigo-500`}></i>
+              {status === 'speaking' ? 'James está hablando' : 'James te escucha...'}
             </div>
           </div>
         )}
