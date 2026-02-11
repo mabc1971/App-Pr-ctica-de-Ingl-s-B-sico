@@ -11,11 +11,17 @@ const ListeningModule: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
+  const getApiKey = () => {
+    return process.env.API_KEY || 
+           (process.env as any).VITE_API_KEY || 
+           (import.meta as any).env?.VITE_API_KEY;
+  };
+
   const fetchNewPhrase = async () => {
     setLoadingNew(true);
     setError(null);
     try {
-      const apiKey = process.env.API_KEY || (process.env as any).CLAVE_API;
+      const apiKey = getApiKey();
       if (!apiKey) throw new Error("API_KEY no detectada.");
       
       const ai = new GoogleGenAI({ apiKey });
@@ -25,7 +31,7 @@ const ListeningModule: React.FC = () => {
       });
       setShadowingText(response.text?.trim() || shadowingText);
     } catch (e) {
-      setError("Error al obtener nueva frase.");
+      setError("Error de conexión. Verifica la clave en Vercel.");
     } finally {
       setLoadingNew(false);
     }
@@ -37,8 +43,8 @@ const ListeningModule: React.FC = () => {
     setError(null);
     
     try {
-      const apiKey = process.env.API_KEY || (process.env as any).CLAVE_API;
-      if (!apiKey) throw new Error("Falta la API_KEY en Vercel.");
+      const apiKey = getApiKey();
+      if (!apiKey) throw new Error("Falta la configuración de API en Vercel.");
 
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });

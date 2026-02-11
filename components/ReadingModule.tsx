@@ -11,11 +11,14 @@ const ReadingModule: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      // Intentamos obtener la clave de ambos nombres posibles
-      const apiKey = process.env.API_KEY || (process.env as any).CLAVE_API;
+      // Buscamos la clave en todas las ubicaciones posibles para Vercel/Vite
+      const apiKey = process.env.API_KEY || 
+                     (process.env as any).VITE_API_KEY || 
+                     (process.env as any).CLAVE_API ||
+                     (import.meta as any).env?.VITE_API_KEY;
       
       if (!apiKey) {
-        throw new Error("La clave de API no se encuentra. En Vercel, asegúrate de que el nombre sea exactamente API_KEY.");
+        throw new Error("Clave de API no detectada. 1. Cambia el nombre en Vercel a VITE_API_KEY. 2. ¡Haz clic en el botón 'Desplegar' de nuevo!");
       }
 
       const ai = new GoogleGenAI({ apiKey });
@@ -66,6 +69,7 @@ const ReadingModule: React.FC = () => {
         <div className="bg-red-50 text-red-600 p-6 rounded-2xl border border-red-200 text-sm text-center animate-shake shadow-sm">
           <i className="fas fa-exclamation-circle text-2xl mb-2 block"></i>
           <p className="font-bold">{error}</p>
+          <p className="mt-2 text-xs opacity-80">Si acabas de cambiar la clave en Vercel, recuerda que debes hacer un nuevo "Deploy".</p>
         </div>
       )}
 
