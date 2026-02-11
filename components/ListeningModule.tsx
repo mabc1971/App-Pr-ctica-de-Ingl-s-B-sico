@@ -15,12 +15,13 @@ const ListeningModule: React.FC = () => {
     setLoadingNew(true);
     setError(null);
     try {
-      const apiKey = process.env.API_KEY;
-      if (!apiKey) throw new Error("API_KEY no encontrada.");
+      const apiKey = process.env.API_KEY || (process.env as any).CLAVE_API;
+      if (!apiKey) throw new Error("API_KEY no detectada.");
+      
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: 'Give me one very simple English sentence for a beginner. Max 7 words. No quotes.',
+        contents: 'Give me one very simple English sentence for a beginner. Max 6 words. No quotes.',
       });
       setShadowingText(response.text?.trim() || shadowingText);
     } catch (e) {
@@ -36,8 +37,8 @@ const ListeningModule: React.FC = () => {
     setError(null);
     
     try {
-      const apiKey = process.env.API_KEY;
-      if (!apiKey) throw new Error("API_KEY no configurada en Vercel.");
+      const apiKey = process.env.API_KEY || (process.env as any).CLAVE_API;
+      if (!apiKey) throw new Error("Falta la API_KEY en Vercel.");
 
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
@@ -73,7 +74,7 @@ const ListeningModule: React.FC = () => {
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Error de audio.");
+      setError(err.message || "Error en la reproducción de voz.");
       setIsPlaying(false);
     } finally {
       setLoadingAudio(false);
@@ -82,29 +83,29 @@ const ListeningModule: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-slate-800">Práctica de Escucha</h3>
-          <button onClick={fetchNewPhrase} disabled={loadingNew} className="text-xs font-bold text-indigo-600 uppercase hover:underline">
+      <div className="bg-white p-10 rounded-3xl shadow-sm border border-slate-200">
+        <div className="flex justify-between items-center mb-8">
+          <h3 className="text-xl font-bold text-slate-800">Práctica de Escucha Directa</h3>
+          <button onClick={fetchNewPhrase} disabled={loadingNew} className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest px-4 py-2 bg-indigo-50 rounded-xl hover:bg-indigo-100 transition-colors">
             {loadingNew ? '...' : 'Nueva Frase'}
           </button>
         </div>
         
-        <div className="bg-slate-50 py-10 px-6 rounded-2xl border-2 border-dashed border-slate-200 text-center mb-8">
+        <div className="bg-slate-50 py-12 px-8 rounded-2xl border-2 border-dashed border-slate-200 text-center mb-8">
           <p className="text-2xl font-serif text-slate-700 italic">"{shadowingText}"</p>
         </div>
 
-        {error && <p className="text-red-500 text-xs text-center mb-4 font-bold">{error}</p>}
+        {error && <p className="text-red-600 text-xs text-center mb-6 font-bold bg-red-50 p-3 rounded-xl border border-red-100 animate-shake">{error}</p>}
 
         <div className="flex justify-center">
           <button 
             onClick={playTTS}
-            disabled={loadingAudio}
-            className={`w-20 h-20 rounded-full shadow-xl flex items-center justify-center text-2xl transition-all ${
-              isPlaying ? 'bg-red-500 text-white animate-pulse' : 'bg-indigo-600 text-white hover:scale-105 active:scale-95'
+            disabled={loadingAudio || loadingNew}
+            className={`w-24 h-24 rounded-full shadow-2xl flex items-center justify-center text-3xl transition-all ${
+              isPlaying ? 'bg-red-500 text-white animate-pulse' : 'bg-indigo-600 text-white hover:scale-105 active:scale-95 shadow-indigo-200'
             } disabled:opacity-50`}
           >
-            {loadingAudio ? <i className="fas fa-spinner animate-spin"></i> : <i className={`fas ${isPlaying ? 'fa-stop' : 'fa-play'}`}></i>}
+            {loadingAudio ? <i className="fas fa-circle-notch animate-spin"></i> : <i className={`fas ${isPlaying ? 'fa-stop' : 'fa-play'}`}></i>}
           </button>
         </div>
       </div>
