@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
-import GeminiLiveTutor from './components/GeminiLiveTutor';
-import WritingModule from './components/WritingModule';
-import ReadingModule from './components/ReadingModule';
-import ListeningModule from './components/ListeningModule';
-import { SkillType } from './types';
+import GeminiLiveTutor from './components/GeminiLiveTutor.tsx';
+import WritingModule from './components/WritingModule.tsx';
+import ReadingModule from './components/ReadingModule.tsx';
+import ListeningModule from './components/ListeningModule.tsx';
+import { SkillType } from './types.ts';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SkillType | 'Dashboard'>( 'Dashboard');

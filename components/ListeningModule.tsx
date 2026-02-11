@@ -1,11 +1,11 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Modality } from '@google/genai';
-import { decode, decodeAudioData } from '../services/audioUtils';
+import { decode, decodeAudioData } from '../services/audioUtils.ts';
 
 const ListeningModule: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [shadowingText, setShadowingText] = useState<string>('The weather is lovely today. I want to go for a walk in the park.');
+  const [shadowingText, setShadowingText] = useState<string>('English is fun to learn with AI tutors.');
   const [loadingAudio, setLoadingAudio] = useState(false);
   const [loadingNewPhrase, setLoadingNewPhrase] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -16,7 +16,7 @@ const ListeningModule: React.FC = () => {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: 'Generate a single short, natural sentence in basic English for a student to practice speaking (shadowing). Maximum 12 words.',
+        contents: 'Generate a single short, natural sentence in basic English for a student to practice speaking (shadowing). Maximum 10 words.',
       });
       const newPhrase = response.text?.trim().replace(/^["']|["']$/g, '') || shadowingText;
       setShadowingText(newPhrase);
@@ -34,7 +34,7 @@ const ListeningModule: React.FC = () => {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: `Say clearly and at a natural pace for a student: ${text}` }] }],
+        contents: [{ parts: [{ text: `Say clearly: ${text}` }] }],
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
@@ -52,7 +52,11 @@ const ListeningModule: React.FC = () => {
         const source = audioContextRef.current.createBufferSource();
         source.buffer = buffer;
         source.connect(audioContextRef.current.destination);
-        source.onended = () => setIsPlaying(false);
+        source.onended = () => {
+          setIsPlaying(false);
+          // Cambiar frase automáticamente después de escuchar para incentivar la práctica
+          fetchNewPhrase();
+        };
         setIsPlaying(true);
         source.start();
       }
@@ -105,21 +109,19 @@ const ListeningModule: React.FC = () => {
             </button>
           </div>
           <p className="text-slate-600 text-sm mb-6">
-            La técnica de **shadowing** consiste en repetir lo que escuchas al mismo tiempo. Escucha la pronunciación de la IA e inténtalo.
+            Presiona <strong>Play</strong> para escuchar y repetir. La frase cambiará automáticamente al terminar.
           </p>
           
-          <div className="bg-slate-50 p-6 rounded-2xl border border-dashed border-slate-300 mb-6 flex-1 flex items-center justify-center">
+          <div className="bg-slate-50 p-6 rounded-2xl border border-dashed border-slate-300 mb-6 flex-1 flex items-center justify-center min-h-[120px]">
              {loadingNewPhrase ? (
-               <div className="animate-pulse flex space-x-4">
-                 <div className="h-4 w-48 bg-slate-200 rounded"></div>
+               <div className="flex items-center gap-2 text-indigo-500">
+                 <i className="fas fa-circle-notch animate-spin"></i>
+                 <span className="font-medium">Generando frase...</span>
                </div>
              ) : (
-               <textarea 
-                 value={shadowingText}
-                 onChange={(e) => setShadowingText(e.target.value)}
-                 className="w-full bg-transparent border-none resize-none focus:ring-0 text-xl md:text-2xl font-medium text-slate-700 italic text-center h-24"
-                 placeholder="Escribe algo para practicar..."
-               />
+               <div className="text-xl md:text-2xl font-medium text-slate-700 italic text-center px-4">
+                 "{shadowingText}"
+               </div>
              )}
           </div>
 
@@ -142,8 +144,8 @@ const ListeningModule: React.FC = () => {
 
         {/* Podcasts Section */}
         <div className="bg-slate-900 rounded-3xl p-6 text-white flex flex-col">
-          <h3 className="font-bold mb-4 flex items-center gap-2">
-            <i className="fas fa-podcast text-indigo-400"></i> Podcasts Recomendados
+          <h3 className="font-bold mb-4 flex items-center gap-2 text-indigo-300">
+            <i className="fas fa-podcast"></i> Podcasts Reales
           </h3>
           <div className="space-y-3 flex-1 overflow-y-auto">
             {podcasts.map(p => (
@@ -152,27 +154,22 @@ const ListeningModule: React.FC = () => {
                 href={p.link} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors flex items-center justify-between group"
+                className="p-4 bg-white/10 rounded-xl hover:bg-white/20 border border-transparent hover:border-indigo-500/50 transition-all flex items-center justify-between group"
               >
                 <div>
                   <p className="font-bold text-sm">{p.title}</p>
                   <p className="text-[10px] text-indigo-300 uppercase tracking-widest">{p.type}</p>
                 </div>
-                <i className="fas fa-external-link-alt text-xs opacity-60 group-hover:opacity-100 transition-opacity"></i>
+                <i className="fas fa-external-link-alt text-xs opacity-60 group-hover:opacity-100 group-hover:text-indigo-400 transition-all"></i>
               </a>
             ))}
-          </div>
-          <div className="mt-4 p-3 bg-indigo-500/20 rounded-xl border border-white/10">
-            <p className="text-[10px] text-indigo-200 italic leading-tight">
-              Nota: Estos podcasts están diseñados específicamente para estudiantes de idiomas.
-            </p>
           </div>
         </div>
       </div>
 
       {/* YouTube Section */}
       <section>
-        <h3 className="text-xl font-bold text-slate-800 mb-4 px-2">Recursos Audiovisuales (YouTube)</h3>
+        <h3 className="text-xl font-bold text-slate-800 mb-4 px-2">Audiovisuales (YouTube)</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {youtubeChannels.map(yt => (
             <a 
@@ -180,9 +177,9 @@ const ListeningModule: React.FC = () => {
               href={yt.url} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center gap-6 hover:shadow-md transition-shadow group"
+              className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center gap-6 hover:shadow-md hover:border-indigo-200 transition-all group"
             >
-               <div className={`w-16 h-16 ${yt.color} rounded-2xl flex items-center justify-center text-white text-2xl group-hover:scale-105 transition-transform`}>
+               <div className={`w-16 h-16 ${yt.color} rounded-2xl flex items-center justify-center text-white text-2xl group-hover:scale-110 transition-transform shadow-lg`}>
                  <i className="fab fa-youtube"></i>
                </div>
                <div className="flex-1">
@@ -190,8 +187,8 @@ const ListeningModule: React.FC = () => {
                    {yt.name}
                    <i className="fas fa-external-link-alt text-[10px] text-slate-300"></i>
                  </h4>
-                 <p className="text-sm text-slate-500">{yt.desc}</p>
-                 <span className="mt-2 text-xs font-bold text-indigo-600 block">Visitar canal</span>
+                 <p className="text-sm text-slate-500 line-clamp-2">{yt.desc}</p>
+                 <span className="mt-2 text-xs font-bold text-indigo-600 block group-hover:translate-x-1 transition-transform">Visitar canal oficial <i className="fas fa-chevron-right text-[8px]"></i></span>
                </div>
             </a>
           ))}
