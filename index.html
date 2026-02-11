@@ -14,7 +14,7 @@
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
     </style>
     <script>
-        // Shim para process.env necesario en entornos de navegador puros
+        // Asegura que process.env exista para que la SDK de Google no falle
         window.process = window.process || { env: {} };
     </script>
 <script type="importmap">
