@@ -25,10 +25,7 @@ const GeminiLiveTutor: React.FC = () => {
     setError(null);
     setStatus('connecting');
     try {
-      const apiKey = process.env.API_KEY || (process.env as any).CLAVE_API;
-      if (!apiKey) throw new Error("API_KEY no encontrada. Asegúrate de configurarla en Vercel.");
-
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       inputAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       outputAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       
@@ -71,7 +68,7 @@ const GeminiLiveTutor: React.FC = () => {
           },
           onerror: (e) => { 
             console.error("Live Error:", e);
-            setError("Error de conexión. Revisa tu clave de API."); 
+            setError("Error de conexión. Revisa que API_KEY sea correcta."); 
             stopSession(); 
           },
           onclose: () => stopSession()
@@ -84,7 +81,7 @@ const GeminiLiveTutor: React.FC = () => {
       });
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Error al iniciar sesión.");
+      setError("Error al iniciar sesión. Configura API_KEY en Vercel.");
       setStatus('idle');
     }
   };

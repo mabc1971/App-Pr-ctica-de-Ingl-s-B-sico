@@ -11,27 +11,16 @@ const ReadingModule: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      // Buscamos la clave en todas las ubicaciones posibles para Vercel/Vite
-      const apiKey = process.env.API_KEY || 
-                     (process.env as any).VITE_API_KEY || 
-                     (process.env as any).CLAVE_API ||
-                     (import.meta as any).env?.VITE_API_KEY;
-      
-      if (!apiKey) {
-        throw new Error("Clave de API no detectada. 1. Cambia el nombre en Vercel a VITE_API_KEY. 2. ¡Haz clic en el botón 'Desplegar' de nuevo!");
-      }
-
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Write a very short story (max 50 words) in simple English for a basic student about: ${topic}. Focus on beginner vocabulary. After the story, list 3 words with Spanish translations.`,
       });
       
-      if (!response.text) throw new Error("La IA no devolvió contenido.");
       setStory(response.text);
     } catch (err: any) {
       console.error("Reading Error:", err);
-      setError(err.message || "Error al conectar con Gemini.");
+      setError("Error de API: Asegúrate de que la variable en Vercel se llame exactamente API_KEY y haz un 'Redeploy'.");
     } finally {
       setLoading(false);
     }
@@ -69,7 +58,6 @@ const ReadingModule: React.FC = () => {
         <div className="bg-red-50 text-red-600 p-6 rounded-2xl border border-red-200 text-sm text-center animate-shake shadow-sm">
           <i className="fas fa-exclamation-circle text-2xl mb-2 block"></i>
           <p className="font-bold">{error}</p>
-          <p className="mt-2 text-xs opacity-80">Si acabas de cambiar la clave en Vercel, recuerda que debes hacer un nuevo "Deploy".</p>
         </div>
       )}
 

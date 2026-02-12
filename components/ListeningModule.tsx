@@ -11,27 +11,18 @@ const ListeningModule: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  const getApiKey = () => {
-    return process.env.API_KEY || 
-           (process.env as any).VITE_API_KEY || 
-           (import.meta as any).env?.VITE_API_KEY;
-  };
-
   const fetchNewPhrase = async () => {
     setLoadingNew(true);
     setError(null);
     try {
-      const apiKey = getApiKey();
-      if (!apiKey) throw new Error("API_KEY no detectada.");
-      
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: 'Give me one very simple English sentence for a beginner. Max 6 words. No quotes.',
       });
       setShadowingText(response.text?.trim() || shadowingText);
     } catch (e) {
-      setError("Error de conexión. Verifica la clave en Vercel.");
+      setError("Error al obtener nueva frase. Revisa tu API_KEY.");
     } finally {
       setLoadingNew(false);
     }
@@ -43,9 +34,6 @@ const ListeningModule: React.FC = () => {
     setError(null);
     
     try {
-      const apiKey = getApiKey();
-      if (!apiKey) throw new Error("Falta la configuración de API en Vercel.");
-
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       }
@@ -53,7 +41,7 @@ const ListeningModule: React.FC = () => {
         await audioContextRef.current.resume();
       }
 
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text: shadowingText }] }],
@@ -75,12 +63,10 @@ const ListeningModule: React.FC = () => {
         };
         setIsPlaying(true);
         source.start(0);
-      } else {
-        throw new Error("No se pudo generar el audio.");
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Error en la reproducción de voz.");
+      setError("Error en la reproducción. Verifica que API_KEY esté bien configurada.");
       setIsPlaying(false);
     } finally {
       setLoadingAudio(false);

@@ -15,20 +15,16 @@ const WritingModule: React.FC = () => {
     setFeedback(null);
     
     try {
-      const apiKey = process.env.API_KEY || (process.env as any).CLAVE_API;
-      if (!apiKey) throw new Error("No se detectó la clave de API. Verifica el nombre en Vercel.");
-
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Act like a patient English teacher. Correct the grammar and spelling of this text for a basic student: "${text}". Then, explain the corrections in Spanish.`,
       });
       
-      if (!response.text) throw new Error("El tutor James no respondió.");
       setFeedback(response.text);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Error al conectar con el tutor.");
+      setError("Error al conectar con el tutor. Revisa la variable API_KEY en Vercel.");
     } finally {
       setLoading(false);
     }
