@@ -1,6 +1,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 import React, { useState } from 'react';
+import { getGeminiApiKey } from '../services/apiConfig.ts';
 
 const ReadingModule: React.FC = () => {
   const [story, setStory] = useState<string | null>(null);
@@ -11,16 +12,8 @@ const ReadingModule: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const getApiKey = () => {
-        const win = window as any;
-        return win.process?.env?.GEMINI_API_KEY || 
-               win.process?.env?.API_KEY || 
-               process.env.GEMINI_API_KEY || 
-               process.env.API_KEY;
-      };
-
-      const apiKey = getApiKey();
-      if (!apiKey) throw new Error("API Key no configurada. Por favor, configúrala en la sección de Habla.");
+      const apiKey = getGeminiApiKey();
+      if (!apiKey) throw new Error("API Key no configurada. Por favor, configúrala en Vercel como GEMINI_API_KEY o en la sección de Habla.");
 
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({

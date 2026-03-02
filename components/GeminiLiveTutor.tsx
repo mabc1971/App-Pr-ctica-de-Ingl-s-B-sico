@@ -2,6 +2,7 @@
 import { GoogleGenAI, Modality, LiveServerMessage } from "@google/genai";
 import React, { useState, useRef, useCallback } from 'react';
 import { decode, decodeAudioData, createPcmBlob } from '../services/audioUtils.ts';
+import { getGeminiApiKey } from '../services/apiConfig.ts';
 
 const GeminiLiveTutor: React.FC = () => {
   const [isActive, setIsActive] = useState(false);
@@ -61,28 +62,20 @@ const GeminiLiveTutor: React.FC = () => {
     setStatus('connecting');
     nextStartTimeRef.current = 0;
     try {
-      const getApiKey = () => {
-        const win = window as any;
-        return win.process?.env?.GEMINI_API_KEY || 
-               win.process?.env?.API_KEY || 
-               process.env.GEMINI_API_KEY || 
-               process.env.API_KEY;
-      };
-
-      let apiKey = getApiKey();
+      let apiKey = getGeminiApiKey();
       
       if (!apiKey && window.aistudio) {
         const hasKey = await window.aistudio.hasSelectedApiKey();
         if (!hasKey) {
           await handleKeySelection();
-          apiKey = getApiKey();
+          apiKey = getGeminiApiKey();
         } else {
-          apiKey = getApiKey();
+          apiKey = getGeminiApiKey();
         }
       }
 
       if (!apiKey) {
-        throw new Error("No se encontró una API Key. Por favor, usa el botón de configuración.");
+        throw new Error("No se encontró una API Key. Por favor, asegúrate de configurar GEMINI_API_KEY en Vercel o usa el botón de configuración.");
       }
       
       const ai = new GoogleGenAI({ apiKey });

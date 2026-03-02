@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { motion, AnimatePresence } from 'motion/react';
+import { getGeminiApiKey } from '../services/apiConfig.ts';
 
 interface Message {
   role: 'user' | 'model';
@@ -33,18 +34,10 @@ const SupportChat: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const getApiKey = () => {
-        const win = window as any;
-        return win.process?.env?.GEMINI_API_KEY || 
-               win.process?.env?.API_KEY || 
-               process.env.GEMINI_API_KEY || 
-               process.env.API_KEY;
-      };
-
-      const apiKey = getApiKey();
+      const apiKey = getGeminiApiKey();
       
       if (!apiKey) {
-        setMessages(prev => [...prev, { role: 'model', text: 'Error: API Key no configurada. Por favor, asegúrate de configurar tu API Key en la sección de Habla (Speaking) o contacta al soporte.' }]);
+        setMessages(prev => [...prev, { role: 'model', text: 'Error: API Key no configurada. Por favor, asegúrate de configurar tu API Key en Vercel como GEMINI_API_KEY o en la sección de Habla (Speaking).' }]);
         setIsLoading(false);
         return;
       }
