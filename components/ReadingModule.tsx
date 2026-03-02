@@ -11,7 +11,18 @@ const ReadingModule: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const getApiKey = () => {
+        const win = window as any;
+        return win.process?.env?.GEMINI_API_KEY || 
+               win.process?.env?.API_KEY || 
+               process.env.GEMINI_API_KEY || 
+               process.env.API_KEY;
+      };
+
+      const apiKey = getApiKey();
+      if (!apiKey) throw new Error("API Key no configurada. Por favor, configúrala en la sección de Habla.");
+
+      const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Write a very short story (max 50 words) in simple English for a basic student about: ${topic}. Focus on beginner vocabulary. After the story, list 3 words with Spanish translations.`,
@@ -20,7 +31,7 @@ const ReadingModule: React.FC = () => {
       setStory(response.text);
     } catch (err: any) {
       console.error("Reading Error:", err);
-      setError("Error de API: Asegúrate de que la variable en Vercel se llame exactamente API_KEY y haz un 'Redeploy'.");
+      setError(err.message || "Error al generar la historia.");
     } finally {
       setLoading(false);
     }
@@ -28,18 +39,18 @@ const ReadingModule: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 p-8 rounded-3xl text-white shadow-xl">
-        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-          <i className="fas fa-book-sparkles"></i> Generador de Lecturas
+      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+        <h2 className="text-2xl font-bold text-slate-900 mb-2 flex items-center gap-2">
+          <i className="fas fa-book-sparkles text-indigo-600"></i> Generador de Lecturas
         </h2>
-        <p className="text-indigo-100 mb-6 text-sm">Elige un tema para que James escriba una historia corta:</p>
+        <p className="text-slate-500 mb-6 text-sm">Elige un tema para que James escriba una historia corta:</p>
         <div className="flex flex-wrap gap-3">
           {['A small cat', 'The red car', 'My family', 'Big city'].map(t => (
             <button 
               key={t} 
               onClick={() => generateStory(t)} 
               disabled={loading}
-              className="bg-white/20 hover:bg-white text-white hover:text-indigo-700 px-5 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50 active:scale-95 border border-white/10"
+              className="bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50 active:scale-95 border border-indigo-100"
             >
               {t}
             </button>

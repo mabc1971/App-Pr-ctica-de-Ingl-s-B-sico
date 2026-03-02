@@ -8,24 +8,84 @@ const GeminiLiveTutor: React.FC = () => {
   const [status, setStatus] = useState<'idle' | 'connecting' | 'listening' | 'speaking'>('idle');
   const [error, setError] = useState<string | null>(null);
   
+  const statusRef = useRef(status);
+  statusRef.current = status;
+  
+  const isActiveRef = useRef(isActive);
+  isActiveRef.current = isActive;
+  
   const inputAudioCtxRef = useRef<AudioContext | null>(null);
   const outputAudioCtxRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  const isClosingRef = useRef(false);
 
   const stopSession = useCallback(() => {
-    if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
-    if (inputAudioCtxRef.current) inputAudioCtxRef.current.close();
-    if (outputAudioCtxRef.current) outputAudioCtxRef.current.close();
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    
+    if (inputAudioCtxRef.current && inputAudioCtxRef.current.state !== 'closed') {
+      inputAudioCtxRef.current.close().catch(console.error);
+    }
+    if (outputAudioCtxRef.current && outputAudioCtxRef.current.state !== 'closed') {
+      outputAudioCtxRef.current.close().catch(console.error);
+    }
+    
+    inputAudioCtxRef.current = null;
+    outputAudioCtxRef.current = null;
     setIsActive(false);
     setStatus('idle');
+    isClosingRef.current = false;
   }, []);
+
+  const handleKeySelection = async () => {
+    if (window.aistudio) {
+      try {
+        await window.aistudio.openSelectKey();
+        setError(null);
+      } catch (err) {
+        console.error("Error opening key selector:", err);
+      }
+    }
+  };
+
+  const nextStartTimeRef = useRef<number>(0);
 
   const startSession = async () => {
     setError(null);
     setStatus('connecting');
+    nextStartTimeRef.current = 0;
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const getApiKey = () => {
+        const win = window as any;
+        return win.process?.env?.GEMINI_API_KEY || 
+               win.process?.env?.API_KEY || 
+               process.env.GEMINI_API_KEY || 
+               process.env.API_KEY;
+      };
+
+      let apiKey = getApiKey();
+      
+      if (!apiKey && window.aistudio) {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        if (!hasKey) {
+          await handleKeySelection();
+          apiKey = getApiKey();
+        } else {
+          apiKey = getApiKey();
+        }
+      }
+
+      if (!apiKey) {
+        throw new Error("No se encontró una API Key. Por favor, usa el botón de configuración.");
+      }
+      
+      const ai = new GoogleGenAI({ apiKey });
       inputAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       outputAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       
@@ -41,16 +101,34 @@ const GeminiLiveTutor: React.FC = () => {
           onopen: () => {
             setIsActive(true);
             setStatus('listening');
-            const source = inputAudioCtxRef.current!.createMediaStreamSource(stream);
-            const scriptProcessor = inputAudioCtxRef.current!.createScriptProcessor(4096, 1, 1);
+            if (!inputAudioCtxRef.current) return;
+            
+            const source = inputAudioCtxRef.current.createMediaStreamSource(stream);
+            const scriptProcessor = inputAudioCtxRef.current.createScriptProcessor(4096, 1, 1);
+            
             scriptProcessor.onaudioprocess = (e) => {
-              if (status === 'speaking') return;
-              sessionPromise.then(s => s.sendRealtimeInput({ media: createPcmBlob(e.inputBuffer.getChannelData(0)) }));
+              if (statusRef.current === 'speaking' || !isActiveRef.current) return;
+              sessionPromise.then(s => {
+                if (statusRef.current !== 'speaking' && isActiveRef.current) {
+                  s.sendRealtimeInput({ media: createPcmBlob(e.inputBuffer.getChannelData(0)) });
+                }
+              }).catch(() => {});
             };
+            
             source.connect(scriptProcessor);
-            scriptProcessor.connect(inputAudioCtxRef.current!.destination);
+            scriptProcessor.connect(inputAudioCtxRef.current.destination);
           },
           onmessage: async (m: LiveServerMessage) => {
+            if (m.serverContent?.interrupted) {
+              sourcesRef.current.forEach(s => {
+                try { s.stop(); } catch(e) {}
+              });
+              sourcesRef.current.clear();
+              nextStartTimeRef.current = 0;
+              setStatus('listening');
+              return;
+            }
+
             const audio = m.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
             if (audio && outputAudioCtxRef.current) {
               setStatus('speaking');
@@ -58,17 +136,32 @@ const GeminiLiveTutor: React.FC = () => {
               const source = outputAudioCtxRef.current.createBufferSource();
               source.buffer = buffer;
               source.connect(outputAudioCtxRef.current.destination);
+              
+              const now = outputAudioCtxRef.current.currentTime;
+              if (nextStartTimeRef.current < now) {
+                nextStartTimeRef.current = now;
+              }
+              
+              source.start(nextStartTimeRef.current);
+              nextStartTimeRef.current += buffer.duration;
+              
               source.onended = () => {
                 sourcesRef.current.delete(source);
-                if (sourcesRef.current.size === 0) setStatus('listening');
+                if (sourcesRef.current.size === 0) {
+                  setStatus('listening');
+                  nextStartTimeRef.current = 0;
+                }
               };
-              source.start();
               sourcesRef.current.add(source);
             }
           },
-          onerror: (e) => { 
+          onerror: (e: any) => { 
             console.error("Live Error:", e);
-            setError("Error de conexión. Revisa que API_KEY sea correcta."); 
+            if (e?.message?.includes("unavailable")) {
+              setError("El servicio de IA está temporalmente saturado o no disponible en tu región. Intenta de nuevo en unos momentos.");
+            } else {
+              setError("Error de conexión. Revisa tu conexión o API Key.");
+            }
             stopSession(); 
           },
           onclose: () => stopSession()
@@ -81,8 +174,9 @@ const GeminiLiveTutor: React.FC = () => {
       });
     } catch (err: any) {
       console.error(err);
-      setError("Error al iniciar sesión. Configura API_KEY en Vercel.");
+      setError("Error al iniciar sesión. Verifica tu API Key.");
       setStatus('idle');
+      stopSession();
     }
   };
 
@@ -99,7 +193,19 @@ const GeminiLiveTutor: React.FC = () => {
         )}
       </div>
       <div className="h-64 p-6 bg-slate-50 flex flex-col justify-center items-center">
-        {error && <p className="text-red-500 font-bold text-center bg-red-50 p-4 rounded-xl border border-red-200">{error}</p>}
+        {error && (
+          <div className="text-center">
+            <p className="text-red-500 font-bold bg-red-50 p-4 rounded-xl border border-red-200 mb-4">{error}</p>
+            {window.aistudio && (
+              <button 
+                onClick={handleKeySelection}
+                className="text-indigo-600 font-semibold hover:underline text-sm"
+              >
+                Configurar API Key
+              </button>
+            )}
+          </div>
+        )}
         {!isActive && !error && <p className="text-slate-400 italic">Pulsa comenzar para practicar inglés con James.</p>}
         {isActive && (
           <div className="text-center">

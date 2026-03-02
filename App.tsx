@@ -4,6 +4,8 @@ import GeminiLiveTutor from './components/GeminiLiveTutor.tsx';
 import WritingModule from './components/WritingModule.tsx';
 import ReadingModule from './components/ReadingModule.tsx';
 import ListeningModule from './components/ListeningModule.tsx';
+import VocabularyModule from './components/VocabularyModule.tsx';
+import SupportChat from './components/SupportChat.tsx';
 import { SkillType } from './types.ts';
 
 const App: React.FC = () => {
@@ -40,6 +42,7 @@ const App: React.FC = () => {
           <NavItem active={activeTab === SkillType.LISTENING} onClick={() => setActiveTab(SkillType.LISTENING)} icon="fa-headphones" label="Escucha (Listening)" />
           <NavItem active={activeTab === SkillType.SPEAKING} onClick={() => setActiveTab(SkillType.SPEAKING)} icon="fa-microphone" label="Habla (Speaking)" />
           <NavItem active={activeTab === SkillType.WRITING} onClick={() => setActiveTab(SkillType.WRITING)} icon="fa-pen-clip" label="Escritura (Writing)" />
+          <NavItem active={activeTab === SkillType.VOCABULARY} onClick={() => setActiveTab(SkillType.VOCABULARY)} icon="fa-language" label="Vocabulario" />
         </div>
 
         <div className="mt-auto p-4 bg-slate-800/50 rounded-xl">
@@ -58,10 +61,10 @@ const App: React.FC = () => {
       <main className="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-10">
         <header className="mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className="text-3xl font-black text-slate-950">
               {activeTab === 'Dashboard' ? '¡Bienvenido, Estudiante!' : activeTab}
             </h1>
-            <p className="text-slate-500">
+            <p className="text-slate-700 font-medium">
               {activeTab === 'Dashboard' 
                 ? '¿Qué habilidad quieres practicar hoy?' 
                 : `Domina el inglés con ejercicios de ${activeTab.toLowerCase()}.`}
@@ -107,8 +110,15 @@ const App: React.FC = () => {
               type={SkillType.WRITING}
               desc="Correcciones inteligentes por IA." 
             />
+            <SkillCard 
+              title="Vocabulario" 
+              icon="fa-language" 
+              color="bg-emerald-500" 
+              type={SkillType.VOCABULARY}
+              desc="Tarjetas de memoria con audio." 
+            />
 
-            <div className="md:col-span-2 lg:col-span-3 mt-4">
+            <div className="md:col-span-2 lg:col-span-2 mt-4">
               <div className="bg-indigo-600 rounded-2xl p-8 text-white flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
                 <div className="relative z-10 flex-1">
                   <h2 className="text-3xl font-bold mb-3">Reto del Día</h2>
@@ -181,7 +191,14 @@ const App: React.FC = () => {
             <WritingModule />
           </div>
         )}
+
+        {activeTab === SkillType.VOCABULARY && (
+          <div className="max-w-5xl mx-auto">
+            <VocabularyModule />
+          </div>
+        )}
       </main>
+      <SupportChat />
     </div>
   );
 };

@@ -3,7 +3,8 @@ export enum SkillType {
   READING = 'Reading',
   LISTENING = 'Listening',
   SPEAKING = 'Speaking',
-  WRITING = 'Writing'
+  WRITING = 'Writing',
+  VOCABULARY = 'Vocabulary'
 }
 
 export interface Lesson {
@@ -26,4 +27,13 @@ export interface Exercise {
 export interface TranscriptionEntry {
   role: 'user' | 'model';
   text: string;
+}
+
+declare global {
+  interface Window {
+    aistudio?: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
+  }
 }
